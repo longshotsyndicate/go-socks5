@@ -102,23 +102,33 @@ func (s *Server) ListenAndServe(network, addr string) error {
 	if err != nil {
 		return err
 	}
-	return s.Serve(l)
+	return s.Serve(l, false)
+}
+
+// ListenBindServe is used to create a listener and serve on it
+// using client's destination IP as final connection source IP
+func (s *Server) ListenBindServe(network, addr string) error {
+	l, err := net.Listen(network, addr)
+	if err != nil {
+		return err
+	}
+	return s.Serve(l,true)
 }
 
 // Serve is used to serve connections from a listener
-func (s *Server) Serve(l net.Listener) error {
+func (s *Server) Serve(l net.Listener, bindsrc bool) error {
 	for {
 		conn, err := l.Accept()
 		if err != nil {
 			return err
 		}
-		go s.ServeConn(conn)
+		go s.ServeConn(conn, bindsrc)
 	}
 	return nil
 }
 
 // ServeConn is used to serve a single connection.
-func (s *Server) ServeConn(conn net.Conn) error {
+func (s *Server) ServeConn(conn net.Conn, bindsrc bool) error {
 	defer conn.Close()
 	bufConn := bufio.NewReader(conn)
 
@@ -159,7 +169,7 @@ func (s *Server) ServeConn(conn net.Conn) error {
 	}
 
 	// Process the client request
-	if err := s.handleRequest(request, conn); err != nil {
+	if err := s.handleRequest(request, conn, bindsrc); err != nil {
 		err = fmt.Errorf("Failed to handle request: %v", err)
 		s.config.Logger.Printf("[ERR] socks: %v", err)
 		return err

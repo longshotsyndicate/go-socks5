@@ -15,6 +15,7 @@ The package has the following features:
 * Rules to do granular filtering of commands
 * Custom DNS resolution
 * Unit tests
+* Multiple IP support: Use client destination IP as new request source IP
 
 TODO
 ====

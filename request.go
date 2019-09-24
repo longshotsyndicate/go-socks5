@@ -84,6 +84,7 @@ type Request struct {
 type conn interface {
 	Write([]byte) (int, error)
 	RemoteAddr() net.Addr
+	LocalAddr() net.Addr
 }
 
 // NewRequest creates a new Request from the tcp connection
@@ -116,7 +117,7 @@ func NewRequest(bufConn io.Reader) (*Request, error) {
 }
 
 // handleRequest is used for request processing after authentication
-func (s *Server) handleRequest(req *Request, conn conn) error {
+func (s *Server) handleRequest(req *Request, conn conn, srcbind bool) error {
 	ctx := context.Background()
 
 	// Resolve the address if we have a FQDN
@@ -142,7 +143,7 @@ func (s *Server) handleRequest(req *Request, conn conn) error {
 	// Switch on the command
 	switch req.Command {
 	case ConnectCommand:
-		return s.handleConnect(ctx, conn, req)
+		return s.handleConnect(ctx, conn, req, srcbind)
 	case BindCommand:
 		return s.handleBind(ctx, conn, req)
 	case AssociateCommand:
@@ -156,7 +157,7 @@ func (s *Server) handleRequest(req *Request, conn conn) error {
 }
 
 // handleConnect is used to handle a connect command
-func (s *Server) handleConnect(ctx context.Context, conn conn, req *Request) error {
+func (s *Server) handleConnect(ctx context.Context, conn conn, req *Request, srcbind bool) error {
 	// Check if this is allowed
 	if ctx_, ok := s.config.Rules.Allow(ctx, req); !ok {
 		if err := sendReply(conn, ruleFailure, nil); err != nil {
@@ -167,11 +168,23 @@ func (s *Server) handleConnect(ctx context.Context, conn conn, req *Request) err
 		ctx = ctx_
 	}
 
+	// We create a custom dialer
+	dialer := &net.Dialer{};
+
+	// Handle local IP bind (copy connection destination IP
+	// address to request source IP address)
+	if srcbind {
+		dialer.LocalAddr=&net.TCPAddr{
+			IP:   conn.LocalAddr().(*net.TCPAddr).IP,
+			Port: 0,
+		}
+	}
+
 	// Attempt to connect
 	dial := s.config.Dial
 	if dial == nil {
 		dial = func(ctx context.Context, net_, addr string) (net.Conn, error) {
-			return net.Dial(net_, addr)
+			return dialer.Dial(net_, addr)
 		}
 	}
 	target, err := dial(ctx, "tcp", req.realDestAddr.Address())

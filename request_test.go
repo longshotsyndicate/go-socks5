@@ -19,6 +19,10 @@ func (m *MockConn) Write(b []byte) (int, error) {
 	return m.buf.Write(b)
 }
 
+func (m *MockConn) LocalAddr() net.Addr {
+	return &net.TCPAddr{IP: []byte{127, 0, 0, 1}, Port: 12345}
+}
+
 func (m *MockConn) RemoteAddr() net.Addr {
 	return &net.TCPAddr{IP: []byte{127, 0, 0, 1}, Port: 65432}
 }
