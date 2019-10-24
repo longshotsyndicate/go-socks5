@@ -97,22 +97,13 @@ func New(conf *Config) (*Server, error) {
 }
 
 // ListenAndServe is used to create a listener and serve on it
-func (s *Server) ListenAndServe(network, addr string) error {
+// 3rd parameter indicates if source IP for outward connection is binded to destination IP from inward connection
+func (s *Server) ListenAndServe(network, addr string, bindsrc bool) error {
 	l, err := net.Listen(network, addr)
 	if err != nil {
 		return err
 	}
-	return s.Serve(l, false)
-}
-
-// ListenBindServe is used to create a listener and serve on it
-// using client's destination IP as final connection source IP
-func (s *Server) ListenBindServe(network, addr string) error {
-	l, err := net.Listen(network, addr)
-	if err != nil {
-		return err
-	}
-	return s.Serve(l,true)
+	return s.Serve(l, bindsrc)
 }
 
 // Serve is used to serve connections from a listener
